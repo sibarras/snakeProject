@@ -117,7 +117,8 @@ class RPiSimulator:
                     print()
                 print('\n\n')
         self.GPIO = GPIO()
-# esto se debe descomentar cuando estes en la rpi
+        
+# esto se debe descomentar cuando estes en la rpi. ES PARA INICIALIZAR LEDS
         # for pos in range(self.dimensions):
         #     self.GPIO.output(self.pos_pin[pos], False)
         #     self.GPIO.output(self.neg_pin[pos], True)

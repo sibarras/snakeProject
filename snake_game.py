@@ -1,17 +1,26 @@
 from random import randint
 from time import sleep
+from pynput.keyboard import Key, Listener  # Aplicar
 import keyboard # deseo eliminar esta libreria en un futuro
-from raspberrypi import RPiSimulator
-
 
 class Snake:
     def __init__(self, limits=tuple):
         self.xf, self.yf = limits
         self.mouth = randint(0, self.xf), randint(0, self.yf)
         self.body = [self.mouth]
-        self.direction = None
+        self.direction = None  # first move change this
         self.step = None
         self.life = True
+        
+        # define first move
+        spaceToMove = {}
+        spaceToMove['right'] = self.xf - self.mouth[0]
+        spaceToMove['left'] = self.mouth[0]
+        spaceToMove['up'] = self.yf - self.mouth[1]
+        spaceToMove['down'] = self.mouth[1]
+        spaceToMove = sorted(spaceToMove.items(), key=lambda sp: sp[1], reverse=True)
+        self.direction = spaceToMove[0][0]
+        del spaceToMove
 
     def move(self, mvDir=str, foodposition=tuple):
         # verify current direction or last direction in memory
@@ -33,13 +42,13 @@ class Snake:
         self.mouth = self.mouth[0]+self.step[0], self.mouth[1]+self.step[1]
 
         # you have food for me?
-        if self.eat(foodposition) == False:
+        if self.snakeEating(foodposition) == False:
             self.body.insert(0, self.mouth) # insert the mouth in the body
             self.body.pop() # remove last part of body
-        elif self.eat(foodposition) == True:
+        elif self.snakeEating(foodposition) == True:
             self.body.insert(0, self.mouth) # just add mouth position
 
-    def eat(self, foodPosition=tuple):
+    def snakeEating(self, foodPosition=tuple):
         if foodPosition == self.mouth:
             return True
         else:
@@ -55,9 +64,8 @@ class Snake:
 
 
 class Board:
-    def __init__(self, xlim=int, ylim=int):
-        self.xlimit = xlim - 1
-        self.ylimit = ylim - 1
+    def __init__(self, limits = tuple):
+        self.xlimit, self.ylimit = limits
 
     def terminalPrintPanel(self, snakebody=list, food=tuple, move='up'):  # cambiar a curses en el futuro
         p = [[' ' for i in range(self.xlimit+1)] for i in range(self.ylimit+1)]
@@ -93,44 +101,59 @@ class Board:
 
 
 class LedPrint:
-    def __init__(self, dimensions=8):
-        from time import sleep
+    def __init__(self, dimensions=tuple):
+        from timehandler import CycleHandler
         from raspberrypi import RPiSimulator
-        self.dimensions = dimensions
+        self.dimensions = dimensions[0]+1
         self.sleep = sleep
         self.IO = RPiSimulator()
+        self.cycle = CycleHandler(self.IO.setLed)
 
-    def makeParts(self, snakemouth=tuple, snakebody=list):
+    def __makeParts(self, snakemouth=tuple, snakebody=list) -> list:
+        # Para hacer las partes de la serpiente, es decir el cuerpo en varias partes
         lastPoint = snakemouth
+        # las partes seran una lista de puntos, y las partes estaran en una lista
         bodyparts = [[]]
-        partNumber = 0
+        partNumber = 0  # inicio la cantidad de partes
+        
+        # Defino hacia donde esta mirando la serpiente con este metodo
+        # Reviso el segundo punto de la lista y lo comparo con la boca para saber el eje
         if snakebody[1][0] == lastPoint[0]:
             axis = 'X'
         elif snakebody[1][1] == lastPoint[1]:
             axis = 'Y'
+        
+        # Armo las partes y cada vez que cambio de eje creo otra
         for point in snakebody:
             if point[0] == lastPoint[0] and axis == 'X':
                 bodyparts[partNumber].append(point)
             elif point[1] == lastPoint[1] and axis == 'Y':
                 bodyparts[partNumber].append(point)
-            else:
+            else:  # cerrando una parte y creando otra. Cambiando de eje
                 partNumber += 1
                 bodyparts.append([])
                 bodyparts[partNumber].append(point)
                 if axis == 'Y': axis = 'X'
                 elif axis == 'X': axis = 'Y'
-            lastPoint = point
+            
+            lastPoint = point  # actualizo el ultimo punto
         return bodyparts
     
-    def show(self, snakemouth=tuple, snakebody=list, food=tuple):
-        bodyParts = self.makeParts(snakemouth, snakebody)
-        bodyParts.append([food])
-        for part in bodyParts:
-            for point in part:
-                self.IO.setLed(point, 'ON')
-            self.sleep(0.1)
-            for point in part:
-                self.IO.setLed(point, 'OFF')
+    def show(self, snakemouth=tuple, snakebody=list, food=tuple) -> None:
+        if self.cycle.running == False:
+            allParts = self.__makeParts(snakemouth, snakebody)
+            self.allParts = allParts.append([food])
+        
+        self.cycle.runCycle(self.allParts)
+
+    def stop(self):
+        self.cycle.stopCycle()
+        self.allParts == []
+
+    def shutdown(self):
+        self.cycle.stopCycle()
+        self.IO.finishLeds()
+
 
 class Food:
     def __init__(self, limits=tuple):
@@ -146,34 +169,30 @@ class Food:
                 self.newFood(snakeBody) # create other (recursive)
 
 
-# object wall
-dim = int(input('Inserta la cantidad de filas y columnas: '))
-screen = Board(dim, dim)
-limits = screen.xlimit, screen.ylimit
+# DEFINO VARIABLES PRINCIPALES
+dim = 8  #  8 leds en x y 8 leds en y
+limits = dim-1, dim-1  # usamos rango de 0 a 7
+
+# object screen
+screen = Board(limits)
 
 # object snake
 snake = Snake(limits)
 
 # object food
 food = Food(limits)
-food.newFood(snake.body)
 
-# define first move (choose the largest distance)
-spaceToMove = {}
-spaceToMove['right'] = limits[0] - snake.mouth[0]
-spaceToMove['left'] = snake.mouth[0]
-spaceToMove['up'] = limits[1] - snake.mouth[1]
-spaceToMove['down'] = snake.mouth[1]
-spaceToMove = sorted(spaceToMove.items(), key=lambda sp: sp[1], reverse=True)
-snake.direction = spaceToMove[0][0]
-del spaceToMove
+# object leds
+leds = LedPrint(limits)
 
 # moving snake
+food.newFood(snake.body)
 while snake.life:
-    # imprime la pantalla
+    # imprime la pantalla -- Cambiar para usar leds
     screen.terminalPrintPanel(snake.body, food.position, snake.direction)
+    
     userKey = ''
-
+    # Hacer esto del start y stop recording con el time() y los tiempos de inicio y fin.
     keyboard.start_recording()
     sleep(0.5)
     listOfKeys = keyboard.stop_recording()
@@ -186,7 +205,7 @@ while snake.life:
     else:
         snake.move(snake.direction, food.position)
 
-    if snake.eat(food.position) is True:
+    if snake.snakeEating(food.position) is True:
         food.newFood(snake.body)
 
     snake.stillAlive()
