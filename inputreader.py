@@ -1,59 +1,37 @@
-#!/usr/bin/python3
-#from pynput.keyboard import Key, Listener
-from pynput import keyboard
-# vamos a utilizar la condicion de tener o no presionada una tecla para
-# usarlo como on off del keylogger y cada vez que la serpiente se mueva lo
-# volvemos a activar
-class Keylogger:
-    pressed = None
-    end = False
-    running = False
+from time import sleep
 
-    @classmethod
-    def on_press(cls, key):
+class Control:
+    def __init__(self):
+        from pynput import keyboard
+        self.keyboard = keyboard
+        self.allowedKeys = ['left','right','up','down']
+        self.pressed = None
+        self.listener = None
+
+    def on_press(self, key):
         key = str(key).lstrip('Key.')
-        if key in ['up','down','left','right']:
-            cls.stop()
-            cls.pressed = key
-            print('finish '+key)
+        if key in self.allowedKeys:
+            self.pressed = key
 
-    @classmethod
-    def on_release(cls, key):
-        if cls.end == True:
-            cls.running = False
-            return False
+    def on_release(self, key):
+        pass
 
-    @classmethod
-    def start(cls, time):
-        cls.pressed = None
-        cls.running = True
-        cls.end = False
-        with keyboard.Events() as events:
-            pressed = events.get(time)
-            if pressed is None:
-                print('you dont press any key')
-            else:
-                print('Recieved event '+pressed)
+    def start(self):
+        self.pressed = None
+        self.listener = self.keyboard.Listener(on_press=self.on_press, on_release=self.on_release)
+        self.listener.start()
 
+    def stop(self):
+        self.listener.stop()
+        self.listener = None
 
-    @classmethod
-    def stop(cls):
-        cls.running = False
-        cls.end = True
-
-# from time import time, sleep
-# ti = time()
-# while time()-ti < 10:
-#     sleep(1)
-#     print(time()-ti)
-#     if not Keylogger.running:
-#         Keylogger.start(1.0)
-#     if Keylogger.pressed != None:
-#         break
-# Keylogger.stop()
-with keyboard.Events() as events:
-            event = events.get(1.0)
-            if event is None:
-                print('you dont press any key')
-            else:
-                print('Recieved event '+ event)
+control = Control()
+control.start()
+sleep(5)
+control.stop()
+print(control.pressed)
+control.start()
+sleep(5)
+control.stop()
+print(control.pressed)
+print("WELL DONE")
