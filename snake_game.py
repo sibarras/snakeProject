@@ -1,6 +1,7 @@
 from random import randint
 from time import sleep, time
 
+
 class Snake:
     def __init__(self, limits=tuple):
         self.xf, self.yf = limits
@@ -62,7 +63,7 @@ class Snake:
 
 
 class Board:
-    def __init__(self, limits = tuple):
+    def __init__(self, limits=tuple):
         self.xlimit, self.ylimit = limits
 
     def terminalPrintPanel(self, snakebody=list, food=tuple, move='up'):  # cambiar a curses en el futuro
@@ -194,54 +195,54 @@ class Control:
         self.pressed = None
         self.listener = None
 
+# ================================ START =====================================
 
 
-# DEFINO VARIABLES PRINCIPALES
-dim = 8  #  8 leds en x y 8 leds en y
-limits = dim-1, dim-1  # usamos rango de 0 a 7
-frec = 100 # hz para los leds
-velocity = 1 # movimiento de serpiente por segundo
+if __name__ == "__main__":
+    # DEFINO VARIABLES PRINCIPALES
+    dim = 8  # 8 leds en x y 8 leds en y
+    limits = dim-1, dim-1  # usamos rango de 0 a 7
+    frec = 100  # hz para los leds (100 serpientes por sec)
+    velocity = 1  # movimiento de serpiente por segundo
 
-# object screen
-screen = Board(limits)
+    # object screen
+    screen = Board(limits)
 
-# object snake
-snake = Snake(limits)
+    # object snake
+    snake = Snake(limits)
 
-# object food
-food = Food(limits)
+    # object food
+    food = Food(limits)
+    food.newFood(snake.body)
 
-# object leds
-leds = LedPrint(limits, frec)
+    # object leds
+    leds = LedPrint(limits, frec)
 
-# Game control
-control = Control()
+    # Game control
+    control = Control()
 
-# moving snake
-food.newFood(snake.body)
-while snake.life:
-    ti = time()
-    # Obtiene el input del teclado y imprime la serpiente
-    control.start()
-    while time()-ti < 1/velocity:
-        leds.show(snake.mouth, snake.body, snake.direction, food.position)
-    leds.stop()
+    # MAIN LOOP
+    while snake.life:
+        ti = time()
+        # Obtiene el input del teclado y imprime la serpiente
+        control.start()
+        while time()-ti < 1/velocity:
+            leds.show(snake.mouth, snake.body, snake.direction, food.position)
+        leds.stop()
 
-    # verifica si se ha colocado nueva direccion
-    if control.pressed[-1] is None:
-        snake.move(snake.direction, food.position)
+        # verifica si se ha colocado nueva direccion
+        if control.pressed[-1] is None:
+            snake.move(snake.direction, food.position)
+        else:
+            snake.move(control.pressed[-1], food.position)
+
+        if snake.snakeEating(food.position) is True:
+            food.newFood(snake.body)
+            if velocity < 3:
+                velocity *= 1.2
+
+        snake.stillAlive()
     else:
-        snake.move(control.pressed[-1], food.position)
-
-    if snake.snakeEating(food.position) is True:
-        food.newFood(snake.body)
-        if velocity < 3:
-            velocity *= 1.2
-
-    snake.stillAlive()
-else:
-    leds.shutdown()
-    control.stop()
-    print("""
-          THE END. SAMUEL IBARRA
-          """)
+        leds.shutdown()
+        control.stop()
+        print("THE END. SAMUEL IBARRA")

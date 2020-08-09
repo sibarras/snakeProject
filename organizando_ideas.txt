@@ -1,7 +1,0 @@
-# ideas
-Puedes correr el listener y dentro de el ciclo de este puedes colocar el temporizador,
-vas con el temporizador definiendo cuando termina el listener y a la vez vas
-corriendo el show de la serpiente (a 60 hz) para que en cada ciclo de muestra de la
-serpiente completa vuelvas a escuchar, hasta que se cumpla el tiempo predefinido.
-
-Tienes que intentar
